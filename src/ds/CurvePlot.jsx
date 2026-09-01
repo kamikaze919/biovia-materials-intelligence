@@ -1,4 +1,5 @@
 import { generateSNCurve, SERIES_COLORS } from "./materialUtils.js";
+import { niceTicks, fmtAxisValue, logTicks } from "./chartUtils.js";
 
 export default function CurvePlot({ materials }) {
   const series = materials.slice(0, 4).map((m, i) => ({
@@ -15,14 +16,20 @@ export default function CurvePlot({ materials }) {
     );
   }
 
-  const W = 560, H = 380, PAD = 48;
+  const W = 560, H = 380, PAD = 50;
   const allN = series.flatMap((s) => s.points.map((p) => Math.log10(p.N)));
   const allS = series.flatMap((s) => s.points.map((p) => p.sigmaA));
-  const [nMin, nMax] = [Math.min(...allN), Math.max(...allN)];
-  const [sMin, sMax] = [0, Math.max(...allS) * 1.05];
+  const [rawNMin, rawNMax] = [Math.min(...allN), Math.max(...allN)];
+  const nPad = (rawNMax - rawNMin) * 0.08 || 0.3;
+  const [nMin, nMax] = [rawNMin - nPad, rawNMax + nPad];
 
-  const sx = (logN) => PAD + ((logN - nMin) / (nMax - nMin || 1)) * (W - PAD - 16);
-  const sy = (s) => H - PAD - ((s - sMin) / (sMax - sMin || 1)) * (H - PAD - 16);
+  const yNice = niceTicks(0, Math.max(...allS) * 1.08);
+  const [sMin, sMax] = [yNice.min, yNice.max];
+  const yTicks = yNice.ticks.filter((v) => v >= sMin - 1e-9 && v <= sMax + 1e-9);
+  const xTicks = logTicks(nMin, nMax);
+
+  const sx = (logN) => PAD + ((logN - nMin) / (nMax - nMin || 1)) * (W - PAD * 2);
+  const sy = (s) => H - PAD - ((s - sMin) / (sMax - sMin || 1)) * (H - PAD * 2);
 
   const pathFor = (points) => points.map((p, i) => `${i === 0 ? "M" : "L"}${sx(Math.log10(p.N))},${sy(p.sigmaA)}`).join(" ");
 
@@ -33,17 +40,22 @@ export default function CurvePlot({ materials }) {
       </div>
       <div style={{ background: "#fff", border: "1px solid var(--border-default)", borderRadius: "var(--radius-md)", padding: 8, overflowX: "auto" }}>
         <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="S-N fatigue curve comparison">
-          {[0, 0.25, 0.5, 0.75, 1].map((f) => (
-            <line key={"gx" + f} x1={PAD + f * (W - PAD - 16)} y1={PAD} x2={PAD + f * (W - PAD - 16)} y2={H - PAD} stroke="var(--border-subtle)" />
+          {xTicks.map((n) => (
+            <line key={"gx" + n} x1={sx(n)} y1={PAD} x2={sx(n)} y2={H - PAD} stroke="var(--border-subtle)" />
           ))}
-          {[0, 0.25, 0.5, 0.75, 1].map((f) => (
-            <line key={"gy" + f} x1={PAD} y1={H - PAD - f * (H - PAD - 16)} x2={W - 16} y2={H - PAD - f * (H - PAD - 16)} stroke="var(--border-subtle)" />
+          {yTicks.map((v) => (
+            <line key={"gy" + v} x1={PAD} y1={sy(v)} x2={W - PAD} y2={sy(v)} stroke="var(--border-subtle)" />
           ))}
-          <line x1={PAD} y1={H - PAD} x2={W - 16} y2={H - PAD} stroke="var(--border-strong)" />
+          <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="var(--border-strong)" />
           <line x1={PAD} y1={PAD} x2={PAD} y2={H - PAD} stroke="var(--border-strong)" />
 
-          {[3, 4, 5, 6, 7].filter((n) => n >= nMin - 0.01 && n <= nMax + 0.01).map((n) => (
-            <text key={n} x={sx(n)} y={H - PAD + 14} textAnchor="middle" fontSize={9} fill="var(--text-secondary)">10^{n}</text>
+          {xTicks.map((n) => (
+            <text key={n} x={sx(n)} y={H - PAD + 16} textAnchor="middle" fontSize={9} fill="var(--text-muted)">10^{n}</text>
+          ))}
+          {yTicks.map((v) => (
+            <text key={"ty" + v} x={PAD - 6} y={sy(v) + 3} textAnchor="end" fontSize={9} fill="var(--text-muted)">
+              {fmtAxisValue(v)}
+            </text>
           ))}
 
           {series.map((s) => (

@@ -128,3 +128,45 @@ export function generateSNCurve(material) {
   }
   return points;
 }
+
+// Synthetic engineering stress-strain curve: a linear elastic region up to yield strength,
+// then a smooth rise to ultimate tensile strength, followed by slight necking softening to
+// fracture at the elongation-at-break strain. This is illustrative/generated data, not measured.
+export function generateStressStrainCurve(material) {
+  const E = findNumeric(material, "Young's Modulus"); // GPa
+  const sy = findNumeric(material, "Yield Strength"); // MPa
+  const su = findNumeric(material, "Tensile Strength"); // MPa
+  const ef = findNumeric(material, "Elongation at Break"); // %
+  if (E == null || sy == null || su == null || ef == null || ef <= 0) return null;
+  const Empa = E * 1000; // GPa -> MPa
+  const strainY = sy / Empa;
+  const strainF = ef / 100;
+  if (!(strainF > strainY)) return null;
+
+  const points = [];
+  const elasticSteps = 10;
+  for (let i = 0; i <= elasticSteps; i++) {
+    const strain = (strainY * i) / elasticSteps;
+    points.push({ strain: strain * 100, stress: Empa * strain });
+  }
+  const peakStrain = strainY + (strainF - strainY) * 0.6;
+  const plasticSteps = 24;
+  for (let i = 1; i <= plasticSteps; i++) {
+    const strain = strainY + ((strainF - strainY) * i) / plasticSteps;
+    let stress;
+    if (strain <= peakStrain) {
+      const t = (strain - strainY) / (peakStrain - strainY || 1);
+      stress = sy + (su - sy) * (1 - Math.pow(1 - t, 2));
+    } else {
+      const t = (strain - peakStrain) / (strainF - peakStrain || 1);
+      stress = su - su * 0.08 * Math.pow(t, 1.5);
+    }
+    points.push({ strain: strain * 100, stress });
+  }
+  return points;
+}
+
+export const CURVE_DATASETS = [
+  { id: "sn", label: "S-N Fatigue Curve", generate: generateSNCurve, xKey: "N", yKey: "sigmaA", xLabel: "Cycles to Failure, N (log scale)", yLabel: "Stress Amplitude (MPa)", logX: true },
+  { id: "stress-strain", label: "Stress-Strain Curve", generate: generateStressStrainCurve, xKey: "strain", yKey: "stress", xLabel: "Strain (%)", yLabel: "Stress (MPa)", logX: false },
+];

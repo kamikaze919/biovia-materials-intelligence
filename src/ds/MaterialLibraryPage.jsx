@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { Button, Checkbox, Tabs, ClassificationTree, Tag, PropertyGroup, CollapsibleSection, RangeSlider, ToggleChips, Toast } from "./components.jsx";
 import PlatformHeader from "./PlatformHeader.jsx";
 import AnalysisPanel from "./AnalysisPanel.jsx";
+import CurveExplorer from "./CurveExplorer.jsx";
 import rawMaterials from "./materials.json";
 import logoBiovia from "./assets/logo-biovia.png";
 import { PROPERTY_GROUP_DEFS, detailToRows, classColor, CLASS_COLORS, findSimilar, findNumeric, FILTERABLE_PROPERTY_GROUPS, DATA_SOURCES, MATERIAL_STATUSES, propertyRange } from "./materialUtils.js";
@@ -74,6 +75,10 @@ export default function MaterialLibraryPage({ onGoHome }) {
   const [selectedId, setSelectedId] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [panelMode, setPanelMode] = useState("detail");
+  const [lastPanelMode, setLastPanelMode] = useState("detail");
+  useEffect(() => {
+    if (panelMode !== "analysis") setLastPanelMode(panelMode);
+  }, [panelMode]);
   const [compareIds, setCompareIds] = useState([]);
   const [checkedProps, setCheckedProps] = useState({});
   const [query, setQuery] = useState("");
@@ -542,16 +547,22 @@ export default function MaterialLibraryPage({ onGoHome }) {
             <div style={{ background: "var(--surface-header-deep)", flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px 0" }}>
                 <div style={{ display: "flex", gap: 4 }}>
-                  <span role="button" tabIndex={0} onClick={() => setPanelMode("detail")}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setPanelMode("detail"); }}
-                    style={{ cursor: "pointer", fontSize: "var(--text-sm)", fontWeight: 700, fontFamily: "var(--font-ui)", padding: "6px 12px", borderRadius: "var(--radius-sm) var(--radius-sm) 0 0", background: panelMode === "detail" ? "var(--gray-25)" : "transparent", color: panelMode === "detail" ? "var(--blue-700)" : "var(--text-on-blue-muted)" }}>
-                    Detail
-                  </span>
-                  <span role="button" tabIndex={0} onClick={() => setPanelMode("analysis")}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setPanelMode("analysis"); }}
-                    style={{ cursor: "pointer", fontSize: "var(--text-sm)", fontWeight: 700, fontFamily: "var(--font-ui)", padding: "6px 12px", borderRadius: "var(--radius-sm) var(--radius-sm) 0 0", background: panelMode === "analysis" ? "var(--gray-25)" : "transparent", color: panelMode === "analysis" ? "var(--blue-700)" : "var(--text-on-blue-muted)" }}>
-                    Compare{compareIds.length > 0 ? ` (${compareIds.length})` : ""}
-                  </span>
+                  {panelMode === "analysis" ? (
+                    <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, fontFamily: "var(--font-ui)", padding: "6px 12px", borderRadius: "var(--radius-sm) var(--radius-sm) 0 0", background: "var(--gray-25)", color: "var(--blue-700)" }}>
+                      Compare{compareIds.length > 0 ? ` (${compareIds.length})` : ""}
+                    </span>
+                  ) : (<>
+                    <span role="button" tabIndex={0} onClick={() => setPanelMode("detail")}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setPanelMode("detail"); }}
+                      style={{ cursor: "pointer", fontSize: "var(--text-sm)", fontWeight: 700, fontFamily: "var(--font-ui)", padding: "6px 12px", borderRadius: "var(--radius-sm) var(--radius-sm) 0 0", background: panelMode === "detail" ? "var(--gray-25)" : "transparent", color: panelMode === "detail" ? "var(--blue-700)" : "var(--text-on-blue-muted)" }}>
+                      Detail
+                    </span>
+                    <span role="button" tabIndex={0} onClick={() => setPanelMode("curves")}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setPanelMode("curves"); }}
+                      style={{ cursor: "pointer", fontSize: "var(--text-sm)", fontWeight: 700, fontFamily: "var(--font-ui)", padding: "6px 12px", borderRadius: "var(--radius-sm) var(--radius-sm) 0 0", background: panelMode === "curves" ? "var(--gray-25)" : "transparent", color: panelMode === "curves" ? "var(--blue-700)" : "var(--text-on-blue-muted)" }}>
+                      Curves
+                    </span>
+                  </>)}
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div onClick={() => setPanelFullscreen((f) => !f)} style={{ color: "var(--text-on-blue-muted)", cursor: "pointer", fontSize: 15, lineHeight: 1, width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 6, borderRadius: "var(--radius-sm)" }}
@@ -560,7 +571,9 @@ export default function MaterialLibraryPage({ onGoHome }) {
                     title={panelFullscreen ? "Exit full screen" : "Full screen"}>
                     {panelFullscreen ? "⤡" : "⤢"}
                   </div>
-                  <div onClick={() => { setDetailOpen(false); setPanelFullscreen(false); }} style={{ color: "var(--text-on-blue-muted)", cursor: "pointer", fontSize: 18, lineHeight: 1, width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 6, borderRadius: "var(--radius-sm)" }}
+                  <div onClick={() => { if (panelMode === "analysis") { setPanelMode(lastPanelMode); } else { setDetailOpen(false); setPanelFullscreen(false); } }}
+                    title={panelMode === "analysis" ? "Back to " + lastPanelMode : "Close"}
+                    style={{ color: "var(--text-on-blue-muted)", cursor: "pointer", fontSize: 18, lineHeight: 1, width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 6, borderRadius: "var(--radius-sm)" }}
                     onMouseOver={(e) => { e.currentTarget.style.color = "#fff"; e.currentTarget.style.background = "rgba(255,255,255,0.15)"; }}
                     onMouseOut={(e) => { e.currentTarget.style.color = "var(--text-on-blue-muted)"; e.currentTarget.style.background = "transparent"; }}>×</div>
                 </div>
@@ -600,6 +613,16 @@ export default function MaterialLibraryPage({ onGoHome }) {
                       {compareIds.includes(selectedId) ? "Remove from Compare" : "Add to Compare"}
                     </Button>
                   </div>
+                </div>
+              )}
+              {panelMode === "curves" && !selectedMaterial && (
+                <div style={{ color: "var(--text-muted)", fontSize: "var(--text-sm)", textAlign: "center", paddingTop: 40 }}>
+                  Select a material from the list to explore its curve datasets.
+                </div>
+              )}
+              {panelMode === "curves" && selectedMaterial && (
+                <div style={{ maxWidth: panelFullscreen ? 560 : "none" }}>
+                  <CurveExplorer key={selectedMaterial.id} material={selectedMaterial} />
                 </div>
               )}
               {panelMode === "analysis" && (
