@@ -1,5 +1,7 @@
 import { useState, useMemo, useRef } from "react";
 import { ALL_PROPERTY_KEYS, CLASS_COLORS, findNumeric } from "./materialUtils.js";
+import { RangeSlider } from "./components.jsx";
+import { niceTicks, fmtAxisValue, logTicks } from "./chartUtils.js";
 
 const PRESETS = [
   { label: "Density vs Melting Point", x: { a: "Density", op: null, b: null, log: false }, y: { a: "Melting / Softening Point", op: null, b: null, log: false } },
@@ -31,6 +33,7 @@ function axisLabel(cfg) {
   const base = cfg.op && cfg.b ? `${cfg.a} ${cfg.op} ${cfg.b}` : cfg.a;
   return cfg.log ? `log₁₀(${base})` : base;
 }
+
 
 function FormulaBuilder({ title, initial, onApply, onCancel }) {
   const [a, setA] = useState(initial.a);
@@ -130,9 +133,26 @@ export default function ScatterPlot({ materials, compareIds }) {
     return true;
   });
 
-  const W = 560, H = 420, PAD = 44;
-  const sx = (v) => PAD + ((v - effXRange[0]) / (effXRange[1] - effXRange[0] || 1)) * (W - PAD - 16);
-  const sy = (v) => H - PAD - ((v - effYRange[0]) / (effYRange[1] - effYRange[0] || 1)) * (H - PAD - 16);
+  // Pad the visual plot range beyond the filter range so edge points aren't flush against the axes.
+  const xPad = (effXRange[1] - effXRange[0]) * 0.08 || (x.log ? 0.3 : 1);
+  const yPad = (effYRange[1] - effYRange[0]) * 0.08 || (y.log ? 0.3 : 1);
+  const paddedXRange = [effXRange[0] - xPad, effXRange[1] + xPad];
+  const paddedYRange = [effYRange[0] - yPad, effYRange[1] + yPad];
+
+  // Non-log axes snap their domain and gridlines to "nice" round numbers (1/2/5 × 10^n).
+  // Log axes keep a continuous domain but tick at integer powers of ten.
+  const xNice = x.log ? null : niceTicks(paddedXRange[0], paddedXRange[1]);
+  const yNice = y.log ? null : niceTicks(paddedYRange[0], paddedYRange[1]);
+  const plotXRange = x.log ? paddedXRange : [xNice.min, xNice.max];
+  const plotYRange = y.log ? paddedYRange : [yNice.min, yNice.max];
+  const xTicks = x.log ? logTicks(paddedXRange[0], paddedXRange[1]).filter((n) => n >= plotXRange[0] && n <= plotXRange[1]) : xNice.ticks.filter((v) => v >= plotXRange[0] - 1e-9 && v <= plotXRange[1] + 1e-9);
+  const yTicks = y.log ? logTicks(paddedYRange[0], paddedYRange[1]).filter((n) => n >= plotYRange[0] && n <= plotYRange[1]) : yNice.ticks.filter((v) => v >= plotYRange[0] - 1e-9 && v <= plotYRange[1] + 1e-9);
+  const fmtXTick = (v) => (x.log ? fmtAxisValue(Math.pow(10, v)) : fmtAxisValue(v));
+  const fmtYTick = (v) => (y.log ? fmtAxisValue(Math.pow(10, v)) : fmtAxisValue(v));
+
+  const W = 560, H = 420, PAD = 50;
+  const sx = (v) => PAD + ((v - plotXRange[0]) / (plotXRange[1] - plotXRange[0] || 1)) * (W - PAD * 2);
+  const sy = (v) => H - PAD - ((v - plotYRange[0]) / (plotYRange[1] - plotYRange[0] || 1)) * (H - PAD * 2);
 
   const byClass = useMemo(() => {
     const map = new Map();
@@ -213,14 +233,24 @@ export default function ScatterPlot({ materials, compareIds }) {
         <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="Scatter plot of filtered materials">
           <defs>
             <clipPath id="scatter-plot-area">
-              <rect x={PAD} y={PAD} width={W - PAD - 16} height={H - PAD - 16} />
+              <rect x={PAD} y={PAD} width={W - PAD * 2} height={H - PAD * 2} />
             </clipPath>
           </defs>
-          {[0, 0.25, 0.5, 0.75, 1].map((f) => (
-            <line key={"gx" + f} x1={PAD + f * (W - PAD - 16)} y1={PAD} x2={PAD + f * (W - PAD - 16)} y2={H - PAD} stroke="var(--border-subtle)" />
+          {xTicks.map((v) => (
+            <line key={"gx" + v} x1={sx(v)} y1={PAD} x2={sx(v)} y2={H - PAD} stroke="var(--border-subtle)" />
           ))}
-          {[0, 0.25, 0.5, 0.75, 1].map((f) => (
-            <line key={"gy" + f} x1={PAD} y1={H - PAD - f * (H - PAD - 16)} x2={W - 16} y2={H - PAD - f * (H - PAD - 16)} stroke="var(--border-subtle)" />
+          {yTicks.map((v) => (
+            <line key={"gy" + v} x1={PAD} y1={sy(v)} x2={W - PAD} y2={sy(v)} stroke="var(--border-subtle)" />
+          ))}
+          {xTicks.map((v) => (
+            <text key={"tx" + v} x={sx(v)} y={H - PAD + 16} textAnchor="middle" fontSize={9} fill="var(--text-muted)">
+              {fmtXTick(v)}
+            </text>
+          ))}
+          {yTicks.map((v) => (
+            <text key={"ty" + v} x={PAD - 6} y={sy(v) + 3} textAnchor="end" fontSize={9} fill="var(--text-muted)">
+              {fmtYTick(v)}
+            </text>
           ))}
 
           <g clipPath="url(#scatter-plot-area)">
@@ -242,7 +272,7 @@ export default function ScatterPlot({ materials, compareIds }) {
             })}
           </g>
 
-          <line x1={PAD} y1={H - PAD} x2={W - 16} y2={H - PAD} stroke="var(--border-strong)" />
+          <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="var(--border-strong)" />
           <line x1={PAD} y1={PAD} x2={PAD} y2={H - PAD} stroke="var(--border-strong)" />
 
           <text x={(W) / 2} y={H - 8} textAnchor="middle" fontSize={10} fill="var(--text-secondary)">{axisLabel(x)}</text>
@@ -250,20 +280,14 @@ export default function ScatterPlot({ materials, compareIds }) {
         </svg>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginTop: 12 }}>
         <div>
-          <div style={{ fontSize: "var(--text-2xs)", color: "var(--text-muted)", marginBottom: 4 }}>X range: {effXRange[0].toFixed(2)} – {effXRange[1].toFixed(2)}</div>
-          <input type="range" min={xBounds[0]} max={xBounds[1]} step={(xBounds[1] - xBounds[0]) / 200 || 1} value={effXRange[0]}
-            onChange={(e) => setXRange([Math.min(+e.target.value, effXRange[1]), effXRange[1]])} style={{ width: "100%" }} />
-          <input type="range" min={xBounds[0]} max={xBounds[1]} step={(xBounds[1] - xBounds[0]) / 200 || 1} value={effXRange[1]}
-            onChange={(e) => setXRange([effXRange[0], Math.max(+e.target.value, effXRange[0])])} style={{ width: "100%" }} />
+          <div style={{ fontSize: "var(--text-2xs)", color: "var(--text-muted)", marginBottom: 4 }}>X range: {axisLabel(x)}</div>
+          <RangeSlider min={xBounds[0]} max={xBounds[1]} value={effXRange} onChange={setXRange} />
         </div>
         <div>
-          <div style={{ fontSize: "var(--text-2xs)", color: "var(--text-muted)", marginBottom: 4 }}>Y range: {effYRange[0].toFixed(2)} – {effYRange[1].toFixed(2)}</div>
-          <input type="range" min={yBounds[0]} max={yBounds[1]} step={(yBounds[1] - yBounds[0]) / 200 || 1} value={effYRange[0]}
-            onChange={(e) => setYRange([Math.min(+e.target.value, effYRange[1]), effYRange[1]])} style={{ width: "100%" }} />
-          <input type="range" min={yBounds[0]} max={yBounds[1]} step={(yBounds[1] - yBounds[0]) / 200 || 1} value={effYRange[1]}
-            onChange={(e) => setYRange([effYRange[0], Math.max(+e.target.value, effYRange[0])])} style={{ width: "100%" }} />
+          <div style={{ fontSize: "var(--text-2xs)", color: "var(--text-muted)", marginBottom: 4 }}>Y range: {axisLabel(y)}</div>
+          <RangeSlider min={yBounds[0]} max={yBounds[1]} value={effYRange} onChange={setYRange} />
         </div>
       </div>
 

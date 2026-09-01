@@ -12,10 +12,13 @@ export default function RadarChart({ materials, keys }) {
     return [cx + R * frac * Math.cos(a), cy + R * frac * Math.sin(a)];
   };
 
+  // Axes are scaled to 115% of the largest value so the max-value material sits inside the
+  // outer ring rather than flush against it.
+  const HEADROOM = 1.15;
   const maxByKey = keys.map((k) => {
     const vals = materials.map((m) => parseNumeric(findValue(m, k))).filter((v) => v != null && !isNaN(v));
     const max = Math.max(0, ...vals);
-    return max > 0 ? max : 1;
+    return (max > 0 ? max : 1) * HEADROOM;
   });
 
   const seriesPolygons = materials.map((m, mi) => {
@@ -57,6 +60,11 @@ export default function RadarChart({ materials, keys }) {
             </text>
           );
         })}
+        {[0.33, 0.66, 1].map((level) => (
+          <text key={"scale" + level} x={cx + 4} y={cy - R * level} fontSize={7} fill="var(--gray-400)" textAnchor="start">
+            {Math.round((level / HEADROOM) * 100)}%
+          </text>
+        ))}
       </svg>
       <div style={{ display: "flex", justifyContent: "center", gap: 14, flexWrap: "wrap" }}>
         {seriesPolygons.map((s) => (
