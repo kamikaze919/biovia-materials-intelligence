@@ -26,6 +26,87 @@ export const DATA_SOURCES = ["Material Library", "Total Materia", "MatWeb", "Gra
 
 export const MATERIAL_STATUSES = ["Approved", "Prototype", "Obsolete"];
 
+// Usage (secondary) classification: user-defined groups organizing materials by intended
+// use/context, independent of and mutually inclusive with the primary Class/Sub-Class
+// hierarchy. Management/creation of these groups is assumed to happen elsewhere — this is
+// just the current group structure and the materials assigned into it.
+export const USAGE_CLASSIFICATION_TREE = [
+  {
+    id: "f150", label: "F-150", matHint: ["Metals", "Composites"],
+    children: [
+      { id: "f150-ext", label: "Exterior", matHint: ["Metals", "Composites", "Polymers"], children: [
+        { id: "f150-ext-baseline", label: "Baseline" },
+        { id: "f150-ext-platinum", label: "Platinum" },
+        { id: "f150-ext-raptor", label: "Raptor" },
+      ] },
+      { id: "f150-chassis", label: "Chassis", matHint: ["Metals", "Composites"], children: [
+        { id: "f150-chassis-base", label: "Base Model Chassis" },
+        { id: "f150-chassis-offroad", label: "Off-Road Package" },
+      ] },
+      { id: "f150-int", label: "Interior", matHint: ["Polymers", "Composites"], children: [
+        { id: "f150-int-baseline", label: "Baseline" },
+        { id: "f150-int-platinum", label: "Platinum" },
+      ] },
+    ],
+  },
+  {
+    id: "explorer", label: "Explorer", matHint: ["Metals", "Polymers", "Composites"],
+    children: [
+      { id: "explorer-ext", label: "Exterior", matHint: ["Metals", "Composites"], children: [
+        { id: "explorer-ext-base", label: "Base" },
+        { id: "explorer-ext-limited", label: "Limited" },
+      ] },
+      { id: "explorer-int", label: "Interior", matHint: ["Polymers", "Composites"], children: [
+        { id: "explorer-int-base", label: "Base" },
+        { id: "explorer-int-limited", label: "Limited" },
+      ] },
+    ],
+  },
+  {
+    id: "mustang", label: "Mustang", matHint: ["Metals", "Ceramics"],
+    children: [
+      { id: "mustang-ext", label: "Exterior", matHint: ["Metals", "Composites"], children: [
+        { id: "mustang-ext-ecoboost", label: "EcoBoost" },
+        { id: "mustang-ext-gt", label: "GT" },
+      ] },
+      { id: "mustang-powertrain", label: "Powertrain", matHint: ["Metals", "Ceramics"], children: [
+        { id: "mustang-powertrain-ecoboost", label: "EcoBoost" },
+        { id: "mustang-powertrain-gt", label: "GT" },
+      ] },
+    ],
+  },
+  {
+    id: "supplier-regions", label: "Supplier Regions",
+    children: [
+      { id: "supplier-na", label: "North America" },
+      { id: "supplier-eu", label: "Europe" },
+      { id: "supplier-apac", label: "Asia Pacific" },
+    ],
+  },
+];
+
+// Flattens the tree into leaf entries with their full "/"-joined path and inherited matHint.
+export function flattenUsageLeaves(tree = USAGE_CLASSIFICATION_TREE, prefix = "", inheritedHint = null) {
+  const out = [];
+  for (const node of tree) {
+    const fullPath = prefix ? `${prefix}/${node.label}` : node.label;
+    const hint = node.matHint || inheritedHint;
+    if (node.children && node.children.length) {
+      out.push(...flattenUsageLeaves(node.children, fullPath, hint));
+    } else {
+      out.push({ id: node.id, label: node.label, fullPath, matHint: hint });
+    }
+  }
+  return out;
+}
+
+// True if a material (given its assigned leaf paths) matches a selected filter path —
+// either directly, or because the filter path is an ancestor of one of the material's paths.
+export function usageMatches(materialPaths, filterPath) {
+  if (!materialPaths || !materialPaths.length) return false;
+  return materialPaths.some((p) => p === filterPath || p.startsWith(filterPath + "/"));
+}
+
 export const CLASS_COLORS = {
   Metals: "#8b8f94",
   Ceramics: "#c9b896",

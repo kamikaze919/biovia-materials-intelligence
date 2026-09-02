@@ -237,15 +237,53 @@ function Node({ node, depth, expanded, onToggle, activeLabel, onSelect }) {
 export function ClassificationTree({ sections }) {
   return (
     <div style={{ fontFamily: "var(--font-body)", background: "var(--gray-25)" }}>
-      {sections.map((sec) => (
-        <div key={sec.label}>
-          <div style={{ padding: "3px 8px 2px", fontSize: "var(--text-2xs)", fontWeight: 700, color: "var(--gray-400)", textTransform: "uppercase", letterSpacing: "var(--tracking-label)", background: "var(--gray-50)", borderBottom: "1px solid var(--border-subtle)" }}>
-            {sec.label}
-          </div>
+      {sections.map((sec, i) => (
+        <div key={sec.label || i}>
+          {sec.label && (
+            <div style={{ padding: "3px 8px 2px", fontSize: "var(--text-2xs)", fontWeight: 700, color: "var(--gray-400)", textTransform: "uppercase", letterSpacing: "var(--tracking-label)", background: "var(--gray-50)", borderBottom: "1px solid var(--border-subtle)" }}>
+              {sec.label}
+            </div>
+          )}
           {sec.nodes.map((n) => (
             <Node key={n.id} node={n} depth={0} expanded={sec.expanded || {}} onToggle={sec.onToggle} activeLabel={sec.activeLabel} onSelect={sec.onSelect} />
           ))}
         </div>
+      ))}
+    </div>
+  );
+}
+
+function UsageNode({ node, path, depth, expanded, onToggleExpand, selectedPaths, onToggleSelect, countByPath }) {
+  const fullPath = path ? `${path}/${node.label}` : node.label;
+  const hasChildren = node.children && node.children.length > 0;
+  const isOpen = expanded[fullPath] !== false;
+  const checked = selectedPaths.has(fullPath);
+  const count = countByPath[fullPath] || 0;
+  return (
+    <>
+      <div role="treeitem" aria-selected={checked} aria-expanded={hasChildren ? isOpen : undefined}
+        style={{ display: "flex", alignItems: "center", gap: 4, padding: `4px 6px 4px ${8 + depth * 12}px`, fontSize: depth === 0 ? "var(--text-base)" : "var(--text-sm)", color: "var(--gray-800)", fontWeight: depth === 0 ? 700 : 400, borderBottom: "1px solid var(--gray-50)", background: "var(--white)" }}>
+        <span role="button" tabIndex={hasChildren ? 0 : -1} onClick={() => hasChildren && onToggleExpand(fullPath)}
+          onKeyDown={(e) => { if (hasChildren && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onToggleExpand(fullPath); } }}
+          style={{ color: "var(--gray-300)", width: 11, fontSize: "var(--text-sm)", flexShrink: 0, cursor: hasChildren ? "pointer" : "default" }} aria-hidden="true">
+          {hasChildren ? (isOpen ? "▾" : "▸") : " "}
+        </span>
+        <Checkbox checked={checked} onChange={(v) => onToggleSelect(fullPath, v)} />
+        <span style={{ flex: 1, cursor: "pointer" }} onClick={() => onToggleSelect(fullPath, !checked)}>{node.label}</span>
+        {count > 0 ? <span style={{ fontSize: "var(--text-2xs)", color: "var(--gray-300)" }}>{count}</span> : null}
+      </div>
+      {hasChildren && isOpen ? node.children.map((c) => (
+        <UsageNode key={c.id} node={c} path={fullPath} depth={depth + 1} expanded={expanded} onToggleExpand={onToggleExpand} selectedPaths={selectedPaths} onToggleSelect={onToggleSelect} countByPath={countByPath} />
+      )) : null}
+    </>
+  );
+}
+
+export function UsageClassificationTree({ nodes, expanded, onToggleExpand, selectedPaths, onToggleSelect, countByPath }) {
+  return (
+    <div style={{ fontFamily: "var(--font-body)", background: "var(--gray-25)" }}>
+      {nodes.map((n) => (
+        <UsageNode key={n.id} node={n} path="" depth={0} expanded={expanded} onToggleExpand={onToggleExpand} selectedPaths={selectedPaths} onToggleSelect={onToggleSelect} countByPath={countByPath} />
       ))}
     </div>
   );

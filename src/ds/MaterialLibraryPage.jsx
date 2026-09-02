@@ -1,11 +1,11 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { Button, Checkbox, Tabs, ClassificationTree, Tag, PropertyGroup, CollapsibleSection, RangeSlider, ToggleChips, Toast } from "./components.jsx";
+import { Button, Checkbox, Tabs, ClassificationTree, UsageClassificationTree, Tag, PropertyGroup, CollapsibleSection, RangeSlider, ToggleChips, Toast } from "./components.jsx";
 import PlatformHeader from "./PlatformHeader.jsx";
 import AnalysisPanel from "./AnalysisPanel.jsx";
 import CurveExplorer from "./CurveExplorer.jsx";
 import rawMaterials from "./materials.json";
 import logoBiovia from "./assets/logo-biovia.png";
-import { PROPERTY_GROUP_DEFS, detailToRows, classColor, CLASS_COLORS, findSimilar, findNumeric, FILTERABLE_PROPERTY_GROUPS, DATA_SOURCES, MATERIAL_STATUSES, propertyRange } from "./materialUtils.js";
+import { PROPERTY_GROUP_DEFS, detailToRows, classColor, CLASS_COLORS, findSimilar, findNumeric, FILTERABLE_PROPERTY_GROUPS, DATA_SOURCES, MATERIAL_STATUSES, propertyRange, USAGE_CLASSIFICATION_TREE, usageMatches } from "./materialUtils.js";
 
 const MATERIALS = rawMaterials;
 
@@ -30,6 +30,27 @@ function buildTree(materials) {
 
 const MI_TREE = buildTree(MATERIALS);
 
+function buildUsageCounts(materials) {
+  const counts = {};
+  for (const m of materials) {
+    // Dedupe per material first, so a material with two tags under the same parent
+    // (e.g. both F-150/Exterior/Baseline and F-150/Chassis/...) only counts once for "F-150" —
+    // matching what selecting that node in the filter will actually show.
+    const prefixes = new Set();
+    for (const full of m.secondaryClasses || []) {
+      let prefix = "";
+      for (const seg of full.split("/")) {
+        prefix = prefix ? `${prefix}/${seg}` : seg;
+        prefixes.add(prefix);
+      }
+    }
+    for (const p of prefixes) counts[p] = (counts[p] || 0) + 1;
+  }
+  return counts;
+}
+
+const USAGE_COUNTS = buildUsageCounts(MATERIALS);
+
 const COUNTRIES = [...new Set(MATERIALS.map((m) => m.origin))];
 
 function passesFilters(m, s, q) {
@@ -42,6 +63,7 @@ function passesFilters(m, s, q) {
   if (sources.length && !sources.includes(m.dataSource)) return false;
   const statuses = Object.keys(s.statusChecks).filter((k) => s.statusChecks[k]);
   if (statuses.length && !statuses.includes(m.materialStatus)) return false;
+  if (s.usageClasses.length && !s.usageClasses.some((p) => usageMatches(m.secondaryClasses, p))) return false;
   for (const [key, range] of Object.entries(s.propertyFilters)) {
     const v = findNumeric(m, key);
     if (v == null || v < range[0] || v > range[1]) return false;
@@ -53,7 +75,7 @@ function passesFilters(m, s, q) {
   return true;
 }
 
-const INITIAL_FILTERS = { activeClass: null, countryChecks: {}, complianceChecks: {}, dataSourceChecks: {}, propertyFilters: {}, statusChecks: {} };
+const INITIAL_FILTERS = { activeClass: null, countryChecks: {}, complianceChecks: {}, dataSourceChecks: {}, propertyFilters: {}, statusChecks: {}, usageClasses: [] };
 
 function SortHeader({ label, field, sortField, sortDir, onSort }) {
   const active = sortField === field;
@@ -72,6 +94,7 @@ export default function MaterialLibraryPage({ onGoHome }) {
   const [activeTab, setActiveTab] = useState("Classification");
   const [view, setView] = useState("list");
   const [expandedNodes, setExpandedNodes] = useState({});
+  const [usageExpanded, setUsageExpanded] = useState({});
   const [selectedId, setSelectedId] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [panelMode, setPanelMode] = useState("detail");
@@ -166,7 +189,7 @@ export default function MaterialLibraryPage({ onGoHome }) {
 
   const [filterHistory, setFilterHistory] = useState({ stack: [INITIAL_FILTERS], index: 0 });
   const filters = filterHistory.stack[filterHistory.index];
-  const { activeClass, countryChecks, complianceChecks, dataSourceChecks, propertyFilters, statusChecks } = filters;
+  const { activeClass, countryChecks, complianceChecks, dataSourceChecks, propertyFilters, statusChecks, usageClasses } = filters;
   const canUndoFilters = filterHistory.index > 0;
   const canRedoFilters = filterHistory.index < filterHistory.stack.length - 1;
 
@@ -197,6 +220,10 @@ export default function MaterialLibraryPage({ onGoHome }) {
     const next = typeof updater === "function" ? updater(filters.statusChecks) : updater;
     pushFilters({ ...filters, statusChecks: next });
   };
+  const toggleUsageClass = (path, on) => {
+    const next = on ? [...filters.usageClasses, path] : filters.usageClasses.filter((p) => p !== path);
+    pushFilters({ ...filters, usageClasses: next });
+  };
   const togglePropertyFilter = (key, on) => {
     const next = { ...filters.propertyFilters };
     if (on) { const r = propRanges[key]; next[key] = [r.min, r.max]; }
@@ -213,7 +240,7 @@ export default function MaterialLibraryPage({ onGoHome }) {
     return adding ? [...c, id] : c.filter((x) => x !== id);
   });
 
-  const s = { activeClass, countryChecks, complianceChecks, dataSourceChecks, propertyFilters, statusChecks };
+  const s = { activeClass, countryChecks, complianceChecks, dataSourceChecks, propertyFilters, statusChecks, usageClasses };
   const similarResults = useMemo(() => {
     if (!similarTo) return null;
     const target = MATERIALS.find((m) => m.id === similarTo);
@@ -231,7 +258,7 @@ export default function MaterialLibraryPage({ onGoHome }) {
       const bv = String(b[sortField] ?? "");
       return av.localeCompare(bv) * dir;
     });
-  }, [activeClass, countryChecks, complianceChecks, dataSourceChecks, propertyFilters, statusChecks, query, sortField, sortDir, similarResults]);
+  }, [activeClass, countryChecks, complianceChecks, dataSourceChecks, propertyFilters, statusChecks, usageClasses, query, sortField, sortDir, similarResults]);
 
   const buildRow = (m) => {
     const isSelected = selectedId === m.id;
@@ -294,6 +321,7 @@ export default function MaterialLibraryPage({ onGoHome }) {
   Object.entries(complianceChecks).filter(([, v]) => v).forEach(([k]) => filterChips.push({ label: k, onRemove: () => setComplianceChecks((c) => ({ ...c, [k]: false })) }));
   Object.entries(dataSourceChecks).filter(([, v]) => v).forEach(([k]) => filterChips.push({ label: k, onRemove: () => setDataSourceChecks((c) => ({ ...c, [k]: false })) }));
   Object.entries(statusChecks).filter(([, v]) => v).forEach(([k]) => filterChips.push({ label: k, onRemove: () => setStatusChecks((c) => ({ ...c, [k]: false })) }));
+  usageClasses.forEach((p) => filterChips.push({ label: p, onRemove: () => toggleUsageClass(p, false) }));
   Object.entries(propertyFilters).forEach(([key, range]) => {
     const r = propRanges[key] || { unit: "" };
     const fmt = (v) => (Number.isInteger(v) ? v : v.toFixed(1));
@@ -333,9 +361,20 @@ export default function MaterialLibraryPage({ onGoHome }) {
               ))}
             </div>
             {activeTab === "Classification" && (
-              <ClassificationTree sections={[{ label: "Classifications", nodes: MI_TREE, expanded: expandedNodes, activeLabel: activeClass,
-                onToggle: (id) => setExpandedNodes((e) => ({ ...e, [id]: e[id] === false ? true : false })),
-                onSelect: (label) => setActiveClass(label) }]} />
+              <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 12 }}>
+                <CollapsibleSection title="Primary Classification" defaultOpen maxHeight={320} count={activeClass ? 1 : 0}>
+                  <ClassificationTree sections={[{ nodes: MI_TREE, expanded: expandedNodes, activeLabel: activeClass,
+                    onToggle: (id) => setExpandedNodes((e) => ({ ...e, [id]: e[id] === false ? true : false })),
+                    onSelect: (label) => setActiveClass(label) }]} />
+                </CollapsibleSection>
+                <CollapsibleSection title="Usage Classification" defaultOpen maxHeight={320} count={usageClasses.length}>
+                  <UsageClassificationTree nodes={USAGE_CLASSIFICATION_TREE} expanded={usageExpanded}
+                    onToggleExpand={(path) => setUsageExpanded((e) => ({ ...e, [path]: e[path] === false ? true : false }))}
+                    selectedPaths={new Set(usageClasses)}
+                    onToggleSelect={toggleUsageClass}
+                    countByPath={USAGE_COUNTS} />
+                </CollapsibleSection>
+              </div>
             )}
             {activeTab === "Filters" && (
               <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 12 }}>
