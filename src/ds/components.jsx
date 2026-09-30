@@ -289,6 +289,75 @@ export function UsageClassificationTree({ nodes, expanded, onToggleExpand, selec
   );
 }
 
+export function KebabMenu({ items }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ position: "relative" }} onClick={(e) => e.stopPropagation()}
+      onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false); }}>
+      <span role="button" tabIndex={0} onClick={() => setOpen((o) => !o)}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen((o) => !o); } }}
+        style={{ width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "var(--radius-sm)", cursor: "pointer", color: "var(--gray-400)", fontSize: 14, background: open ? "var(--surface-selected)" : "transparent" }}
+        title="More actions">⋮</span>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 2px)", right: 0, minWidth: 170, background: "#fff", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)", boxShadow: "var(--shadow-overlay)", zIndex: 10, overflow: "hidden" }}>
+          {items.map((it) => (
+            <div key={it.label} role="menuitem" tabIndex={0}
+              onMouseDown={(e) => { e.preventDefault(); it.onClick(); setOpen(false); }}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); it.onClick(); setOpen(false); } }}
+              style={{ padding: "8px 12px", fontSize: "var(--text-xs)", color: "var(--text-primary)", cursor: "pointer", whiteSpace: "nowrap" }}
+              onMouseOver={(e) => { e.currentTarget.style.background = "var(--surface-hover)"; }}
+              onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; }}>
+              {it.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function PalettePickerModal({ material, palettes, onToggle, onClose }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(10,20,35,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
+      <div role="dialog" aria-label="Add to palette" onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: "var(--radius-lg)", width: 420, maxHeight: "80vh", display: "flex", flexDirection: "column", boxShadow: "var(--shadow-overlay)", fontFamily: "var(--font-ui)" }}>
+        <div style={{ padding: "16px 20px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border-subtle)" }}>
+          <div>
+            <div style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--text-primary)" }}>Add to Palette</div>
+            <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: 2 }}>{material.name}</div>
+          </div>
+          <span onClick={onClose} style={{ cursor: "pointer", color: "var(--gray-500)", fontSize: 16 }}>×</span>
+        </div>
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "8px 12px" }}>
+          {palettes.map((p) => {
+            const checked = p.materialIds.includes(material.id);
+            return (
+              <label key={p.id} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "8px 8px", borderRadius: "var(--radius-sm)", cursor: "pointer", fontFamily: "var(--font-body)" }}
+                onMouseOver={(e) => { e.currentTarget.style.background = "var(--surface-hover)"; }}
+                onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; }}>
+                <span style={{ marginTop: 2 }}><Checkbox checked={checked} onChange={(v) => onToggle(p.id, v)} /></span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--text-primary)" }}>{p.name}</div>
+                  <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--blue-400)", marginTop: 2 }}>
+                    <span aria-hidden="true">📁</span> {p.collabspace}
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 5 }}>
+                    <Tag tone="neutral">{p.visibility}</Tag>
+                    <Tag tone={p.deployed ? "success" : "danger"}>{p.deployed ? "Deployed" : "Not Deployed"}</Tag>
+                  </div>
+                  <div style={{ fontSize: "var(--text-2xs)", color: "var(--text-muted)", marginTop: 4 }}>{p.materialIds.length} materials</div>
+                </div>
+              </label>
+            );
+          })}
+        </div>
+        <div style={{ padding: "12px 20px", borderTop: "1px solid var(--border-subtle)", display: "flex", justifyContent: "flex-end" }}>
+          <Button variant="accent" size="sm" onClick={onClose}>Done</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function Tabs({ items, active, onChange }) {
   return (
     <div role="tablist" style={{ display: "flex", borderBottom: "1px solid var(--border-strong)", background: "var(--white)" }}>

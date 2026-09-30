@@ -17,7 +17,7 @@ const SAVED_SEARCHES = [
   { label: "Biocompatible metals", count: 19 },
 ];
 
-export default function HomePage({ onOpenLibrary }) {
+export default function HomePage({ onOpenLibrary, onOpenManage }) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -52,6 +52,7 @@ export default function HomePage({ onOpenLibrary }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: "auto" }}>
             <Button variant="accent" size="lg" onClick={onOpenLibrary}>Material Library</Button>
             <Button variant="secondary" size="lg" onClick={() => setOpen((o) => !o)}>Recent Materials</Button>
+            <Button variant="secondary" size="lg" onClick={onOpenManage}>Manage</Button>
           </div>
           <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
             <div style={{ flex: 1, padding: "8px 10px", fontSize: "var(--text-xs)", textAlign: "center", cursor: "pointer" }}>📘 Documentation</div>

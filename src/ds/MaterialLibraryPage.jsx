@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { Button, Checkbox, Tabs, ClassificationTree, UsageClassificationTree, Tag, PropertyGroup, CollapsibleSection, RangeSlider, ToggleChips, Toast } from "./components.jsx";
+import { Button, Checkbox, Tabs, ClassificationTree, UsageClassificationTree, Tag, PropertyGroup, CollapsibleSection, RangeSlider, ToggleChips, Toast, KebabMenu, PalettePickerModal } from "./components.jsx";
 import PlatformHeader from "./PlatformHeader.jsx";
 import AnalysisPanel from "./AnalysisPanel.jsx";
 import CurveExplorer from "./CurveExplorer.jsx";
@@ -89,7 +89,8 @@ function SortHeader({ label, field, sortField, sortDir, onSort }) {
   );
 }
 
-export default function MaterialLibraryPage({ onGoHome }) {
+export default function MaterialLibraryPage({ onGoHome, palettes = [], onToggleMaterialInPalette }) {
+  const [paletteModalMaterialId, setPaletteModalMaterialId] = useState(null);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState("Classification");
   const [view, setView] = useState("list");
@@ -524,7 +525,7 @@ export default function MaterialLibraryPage({ onGoHome }) {
 
           {filtered.length > 0 && (view === "list" || panelFullscreen) && (
             <>
-              <div style={{ position: "sticky", top: 0, zIndex: 1, display: "grid", gridTemplateColumns: detailOpen ? "28px 100px 1fr 90px" : "28px 100px 1.2fr 0.9fr 90px 90px", gap: 8, padding: "8px 16px", fontSize: "var(--text-2xs)", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "var(--tracking-label)", borderBottom: "1px solid var(--border-strong)", background: "#fff" }}>
+              <div style={{ position: "sticky", top: 0, zIndex: 1, display: "grid", gridTemplateColumns: detailOpen ? "28px 100px 1fr 90px 26px" : "28px 100px 1.2fr 0.9fr 90px 90px 26px", gap: 8, padding: "8px 16px", fontSize: "var(--text-2xs)", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "var(--tracking-label)", borderBottom: "1px solid var(--border-strong)", background: "#fff" }}>
                 <span></span>
                 <SortHeader label="MAT ID" field="id" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
                 <SortHeader label="Formula" field="name" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
@@ -535,6 +536,7 @@ export default function MaterialLibraryPage({ onGoHome }) {
                   <SortHeader label="Origin" field="origin" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
                   <SortHeader label="Modified" field="dateModified" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
                 </>)}
+                <span></span>
               </div>
               <div ref={listScrollRef} onScroll={(e) => setListScrollTop(e.currentTarget.scrollTop)}
                 style={{ flex: 1, minHeight: 0, overflowY: "auto", position: "relative" }} role="listbox" aria-label="Material search results">
@@ -542,7 +544,7 @@ export default function MaterialLibraryPage({ onGoHome }) {
                   {visibleRows.map((m, i) => (
                     <div key={m.id} role="option" aria-selected={m.isSelected} tabIndex={0} onClick={m.onRowClick}
                       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); m.onRowClick(); } }}
-                      style={{ position: "absolute", top: (startIndex + i) * ROW_HEIGHT, left: 0, right: 0, height: ROW_HEIGHT, boxSizing: "border-box", display: "grid", gridTemplateColumns: detailOpen ? "28px 100px 1fr 90px" : "28px 100px 1.2fr 0.9fr 90px 90px", gap: 8, padding: "8px 16px", alignItems: "center", cursor: "pointer", borderBottom: "1px solid var(--gray-75)", background: m.rowBg, borderLeft: m.rowBorder, outlineOffset: -2 }}>
+                      style={{ position: "absolute", top: (startIndex + i) * ROW_HEIGHT, left: 0, right: 0, height: ROW_HEIGHT, boxSizing: "border-box", display: "grid", gridTemplateColumns: detailOpen ? "28px 100px 1fr 90px 26px" : "28px 100px 1.2fr 0.9fr 90px 90px 26px", gap: 8, padding: "8px 16px", alignItems: "center", cursor: "pointer", borderBottom: "1px solid var(--gray-75)", background: m.rowBg, borderLeft: m.rowBorder, outlineOffset: -2 }}>
                       <span onClick={m.onCheckClick}><Checkbox checked={m.isCompared} onChange={() => {}} /></span>
                       <span style={{ fontSize: "var(--text-xs)", color: "var(--gray-500)", fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.id}</span>
                       <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</span>
@@ -553,6 +555,7 @@ export default function MaterialLibraryPage({ onGoHome }) {
                         <span><Tag>{m.origin}</Tag></span>
                         <span style={{ fontSize: "var(--text-xs)", color: "var(--gray-500)" }}>{m.dateModified}</span>
                       </>)}
+                      <KebabMenu items={[{ label: "Add to Palette…", onClick: () => setPaletteModalMaterialId(m.id) }]} />
                     </div>
                   ))}
                 </div>
@@ -565,7 +568,10 @@ export default function MaterialLibraryPage({ onGoHome }) {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
                 {rows.map((m) => (
                   <div key={m.id} onClick={m.onRowClick} style={{ border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)", padding: 12, cursor: "pointer", position: "relative", background: m.rowBg, borderLeft: m.rowBorder }}>
-                    <span onClick={m.onCheckClick} style={{ position: "absolute", top: 8, right: 8 }}><Checkbox checked={m.isCompared} onChange={() => {}} /></span>
+                    <span onClick={m.onCheckClick} style={{ position: "absolute", top: 8, right: 30 }}><Checkbox checked={m.isCompared} onChange={() => {}} /></span>
+                    <span style={{ position: "absolute", top: 4, right: 4 }}>
+                      <KebabMenu items={[{ label: "Add to Palette…", onClick: () => setPaletteModalMaterialId(m.id) }]} />
+                    </span>
                     <span style={{ width: 26, height: 26, borderRadius: "var(--radius-sm)", background: classColor(m.matClass), display: "block", marginBottom: 10 }} title={m.matClass} />
                     <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: "var(--text-primary)", marginBottom: 4, lineHeight: 1.25 }}>{m.name}</div>
                     <div style={{ fontSize: "var(--text-xs)", color: "var(--gray-500)", fontFamily: "var(--font-mono)", marginBottom: 6 }}>{m.id}</div>
@@ -581,8 +587,8 @@ export default function MaterialLibraryPage({ onGoHome }) {
 
         {detailOpen ? (
           <div style={panelFullscreen
-            ? { flex: "7 1 0%", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", borderLeft: "1px solid var(--border-strong)", background: "var(--gray-25)" }
-            : { flex: "5 1 0%", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", borderLeft: "1px solid var(--border-strong)", background: "var(--gray-25)" }}>
+            ? { flex: "7 1 0%", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", borderLeft: "1px solid var(--border-strong)", background: "var(--gray-25)", position: "relative" }
+            : { flex: "5 1 0%", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", borderLeft: "1px solid var(--border-strong)", background: "var(--gray-25)", position: "relative" }}>
             <div style={{ background: "var(--surface-header-deep)", flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px 0" }}>
                 <div style={{ display: "flex", gap: 4 }}>
@@ -638,6 +644,15 @@ export default function MaterialLibraryPage({ onGoHome }) {
                       </div>
                       <span onClick={() => setSimilarTo(selectedMaterial.id)} style={{ fontSize: "var(--text-xs)", color: "var(--link)", cursor: "pointer", whiteSpace: "nowrap", fontWeight: 600 }}>More like this →</span>
                     </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--border-subtle)" }}>
+                      <Button variant={compareIds.includes(selectedId) ? "secondary" : "accent"} size="sm" onClick={() => toggleCompare(selectedId)}>
+                        {compareIds.includes(selectedId) ? "Remove from Compare" : "Add to Compare"}
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={() => setPaletteModalMaterialId(selectedMaterial.id)}>
+                        🗂 Add to Palette
+                      </Button>
+                      <span style={{ marginLeft: "auto", fontSize: "var(--text-xs)", color: "var(--text-secondary)" }}>{checked.length} properties selected</span>
+                    </div>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: panelFullscreen ? "1fr" : "repeat(2, 1fr)", gap: panelFullscreen ? 10 : 14 }}>
                     {propertyGroups.map((g) => (
@@ -645,12 +660,6 @@ export default function MaterialLibraryPage({ onGoHome }) {
                         <PropertyGroup {...g} />
                       </div>
                     ))}
-                  </div>
-                  <div style={{ marginTop: 16, padding: "12px 14px", background: "#fff", border: "1px solid var(--border-default)", borderRadius: "var(--radius-md)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <span style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)" }}>{checked.length} properties selected</span>
-                    <Button variant={compareIds.includes(selectedId) ? "secondary" : "accent"} size="sm" onClick={() => toggleCompare(selectedId)}>
-                      {compareIds.includes(selectedId) ? "Remove from Compare" : "Add to Compare"}
-                    </Button>
                   </div>
                 </div>
               )}
@@ -721,6 +730,16 @@ export default function MaterialLibraryPage({ onGoHome }) {
           )}
         </div>
       </div>
+
+      {paletteModalMaterialId && (() => {
+        const m = MATERIALS.find((mm) => mm.id === paletteModalMaterialId);
+        if (!m) return null;
+        return (
+          <PalettePickerModal material={m} palettes={palettes}
+            onToggle={(paletteId, checked) => onToggleMaterialInPalette && onToggleMaterialInPalette(paletteId, m.id, checked)}
+            onClose={() => setPaletteModalMaterialId(null)} />
+        );
+      })()}
     </div>
   );
 }
