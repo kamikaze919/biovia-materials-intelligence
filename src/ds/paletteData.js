@@ -102,7 +102,7 @@ export const PALETTE_DEFS = [
   },
   {
     id: "p8", name: "Advanced Composites R&D", collabspace: "Advanced Materials R&D", visibility: "Private", deployed: false,
-    description: "Experimental composite materials under evaluation — not yet released to CAD.",
+    description: "Experimental composite materials under evaluation — not yet published to CAD.",
     matHint: ["Composites"],
     members: [
       { userId: "u10", role: "Owner" }, { userId: "u7", role: "Contributor" },
@@ -111,7 +111,7 @@ export const PALETTE_DEFS = [
   },
   {
     id: "p9", name: "EV Powertrain Materials (Pilot)", collabspace: "Performance & Electrification Program", visibility: "Private", deployed: false,
-    description: "Pilot material set for upcoming electric powertrain programs — not yet released to CAD.",
+    description: "Pilot material set for upcoming electric powertrain programs — not yet published to CAD.",
     matHint: ["Metals", "Ceramics"],
     members: [
       { userId: "u6", role: "Owner" }, { userId: "u2", role: "Contributor" },

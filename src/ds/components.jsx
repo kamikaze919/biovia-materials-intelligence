@@ -342,7 +342,7 @@ export function PalettePickerModal({ material, palettes, onToggle, onClose }) {
                   </div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 5 }}>
                     <Tag tone="neutral">{p.visibility}</Tag>
-                    <Tag tone={p.deployed ? "success" : "danger"}>{p.deployed ? "Deployed" : "Not Deployed"}</Tag>
+                    <Tag tone={p.deployed ? "success" : "danger"}>{p.deployed ? "Published" : "Not Published"}</Tag>
                   </div>
                   <div style={{ fontSize: "var(--text-2xs)", color: "var(--text-muted)", marginTop: 4 }}>{p.materialIds.length} materials</div>
                 </div>

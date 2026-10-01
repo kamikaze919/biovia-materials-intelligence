@@ -73,7 +73,7 @@ export default function ManagePalettesPage({ onGoHome, palettes, onToggleMateria
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 6 }}>
                   <Tag tone="neutral">{p.visibility}</Tag>
-                  <Tag tone={p.deployed ? "success" : "danger"}>{p.deployed ? "Deployed" : "Not Deployed"}</Tag>
+                  <Tag tone={p.deployed ? "success" : "danger"}>{p.deployed ? "Published" : "Not Published"}</Tag>
                 </div>
                 <div style={{ fontSize: "var(--text-2xs)", color: "var(--text-muted)" }}>{p.materialIds.length} materials · {p.members.length} members</div>
               </div>
@@ -100,10 +100,10 @@ export default function ManagePalettesPage({ onGoHome, palettes, onToggleMateria
                   <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                     <div style={{ display: "flex", gap: 6 }}>
                       <Tag tone="neutral">{selected.visibility}</Tag>
-                      <Tag tone={selected.deployed ? "success" : "danger"}>{selected.deployed ? "Deployed" : "Not Deployed"}</Tag>
+                      <Tag tone={selected.deployed ? "success" : "danger"}>{selected.deployed ? "Published" : "Not Published"}</Tag>
                     </div>
                     <Button variant={selected.deployed ? "secondary" : "accent"} size="sm" onClick={() => onToggleDeployed && onToggleDeployed(selected.id)}>
-                      {selected.deployed ? "Retract" : "Deploy"}
+                      {selected.deployed ? "Unpublish" : "Publish"}
                     </Button>
                   </div>
                 </div>
